@@ -1,10 +1,11 @@
 import streamlit as st
 from fpdf import FPDF
 
-# Percentuais fixos
-P_INFRA = 0.247
-P_TREIN = 0.093
-P_FALHAS = 0.20
+# Constantes ajustadas
+TREINAMENTO_FIXO_MENSAL = 166.67
+INFRA_TETO_MIN = 450.00
+INFRA_TETO_MAX = 750.00
+FALHAS_PERC = 0.20
 
 st.set_page_config(page_title="Calculadora Aion X", layout="centered")
 
@@ -26,24 +27,36 @@ def gerar_pdf(dados):
     vr = dados["vr"]
     va = dados["va"]
 
+    # Provisões
     prov13 = salario / 12
     prov_ferias = salario / 12
     adic_ferias = prov_ferias / 3
     total_provisoes = prov13 + prov_ferias + adic_ferias
 
+    # Encargos
     fgts = salario * 0.08
     inss = salario * 0.3344
     total_encargos = fgts + inss
+
+    # Benefícios
     beneficios = plano + vt + vr + va
 
-    infra = salario * P_INFRA
-    treinamento = salario * P_TREIN
-    falhas = salario * P_FALHAS
+    # Infraestrutura: valor fixo ajustável
+    infraestrutura = max(INFRA_TETO_MIN, min(INFRA_TETO_MAX, 614.15))
 
-    total_fixo = salario + total_provisoes + total_encargos
-    total_mensal = total_fixo + beneficios + infra + treinamento + falhas
+    # Treinamento: valor fixo
+    treinamento = TREINAMENTO_FIXO_MENSAL
+
+    # Custo total antes das falhas
+    total_base = salario + total_provisoes + total_encargos + beneficios + infraestrutura + treinamento
+
+    # Falhas humanas: 20% sobre todo o custo base
+    falhas = total_base * FALHAS_PERC
+
+    total_mensal = total_base + falhas
     total_anual = total_mensal * 12
 
+    # Verbas Rescisórias
     ferias_vencidas = salario + (salario / 3)
     dec_terceiro = salario
     aviso = salario
@@ -63,8 +76,8 @@ def gerar_pdf(dados):
     add_line("Provisões Legais", total_provisoes)
     add_line("Encargos", total_encargos)
     add_line("Benefícios", beneficios)
-    add_line("Infraestrutura (24,7%)", infra)
-    add_line("Treinamento (9,3%)", treinamento)
+    add_line("Infraestrutura (valor ajustado)", infraestrutura)
+    add_line("Treinamento (fixo)", treinamento)
     add_line("Falhas Humanas (20%)", falhas)
     add_line("Total Mensal", total_mensal)
     add_line("Total Anual", total_anual)
@@ -82,22 +95,31 @@ def gerar_pdf(dados):
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
     pdf.set_font("Arial", '', 11)
     pdf.multi_cell(0, 7,
-        "- Provisões legais: 13º, férias, adicional de 1/3.\n"
-        "- Encargos: FGTS (8%), INSS patronal (33,44%).\n"
-        "- Benefícios: Informados pelo usuário.\n"
-        "- Infraestrutura: 24,7% do salário base (Campinas/SP).\n"
-        "- Treinamento: 9,3% do salário.\n"
-        "- Falhas Humanas: 20%.\n"
-        "- Verbas Rescisórias: férias vencidas + 1/3, 13º, aviso, FGTS."
+        "- Provisões Legais:\n"
+        "  * 13º salário: 1/12 do salário base por mês\n"
+        "  * Férias: 1/12 do salário base + 1/3 constitucional\n\n"
+        "- Encargos:\n"
+        "  * INSS Patronal (estimado): 33,44% sobre o salário base\n"
+        "  * FGTS: 8% sobre o salário base\n\n"
+        "- Benefícios:\n"
+        "  * Informados manualmente pelo usuário\n\n"
+        "- Infraestrutura:\n"
+        "  * Custo médio de R$ 614,15, limitado entre R$ 450,00 e R$ 750,00 mensais\n\n"
+        "- Treinamento:\n"
+        "  * Estimado em R$ 2.000/ano, rateado em R$ 166,67 por mês\n\n"
+        "- Falhas Humanas:\n"
+        "  * Estimadas em 20% do custo total mensal antes das falhas\n\n"
+        "- Verbas Rescisórias:\n"
+        "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS acumulado"
     )
 
     pdf_output = "relatorio_aionx.pdf"
     pdf.output(pdf_output)
     return pdf_output
 
-# UI
-st.markdown("### 🧾 Calculadora de Custo CLT")
-st.markdown("Preencha os campos abaixo para gerar o relatório detalhado em PDF:")
+# Interface
+st.markdown("### 🧾 Calculadora de Custo CLT - Aion X (versão refinada)")
+st.markdown("Preencha os campos abaixo para gerar o relatório completo:")
 
 with st.form("dados_funcionario"):
     salario = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
