@@ -1,6 +1,6 @@
 import streamlit as st
 from fpdf import FPDF
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import os
 
@@ -28,8 +28,9 @@ class PDF(FPDF):
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Relatório de Custo de Funcionário Administrativo", ln=True, align="C")
         self.ln(5)
+        agora = datetime.utcnow() - timedelta(hours=3)
         self.set_font("Arial", "I", 10)
-        self.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
+        self.cell(0, 10, f"Gerado em: {agora.strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
         self.ln(5)
 
     def footer(self):
@@ -135,11 +136,11 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
-    # Gráfico
+    # Gráfico centralizado
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "Distribuição dos Custos Mensais", ln=True)
-    pdf.image(grafico_path, x=30, y=None, w=150)
+    pdf.cell(0, 10, "Distribuição dos Custos Mensais", ln=True, align="C")
+    pdf.image(grafico_path, x=(210 - 150) / 2, w=150)
 
     # Explicações
     pdf.add_page()
@@ -172,14 +173,14 @@ def gerar_pdf(dados):
         "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS"
     )
 
-    # Salvar PDF e limpar imagem
+    # Finalizar
     pdf_output = "relatorio_aionx.pdf"
     pdf.output(pdf_output)
     if os.path.exists(grafico_path):
         os.remove(grafico_path)
     return pdf_output
 
-# Interface Streamlit
+# Streamlit Interface
 st.markdown("### 🧾 Calculadora de Custo CLT - Aion X")
 st.markdown("Preencha os campos abaixo para gerar o relatório completo em PDF:")
 
