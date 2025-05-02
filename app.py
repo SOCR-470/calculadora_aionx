@@ -1,8 +1,9 @@
 import streamlit as st
 from fpdf import FPDF
+from datetime import datetime
 
 # Constantes ajustadas
-TREINAMENTO_FIXO_MENSAL = 100.00
+TREINAMENTO_FIXO_MENSAL = 166.67
 ALUGUEL_POR_M2 = 42.52
 AREA_POR_FUNCIONARIO = 7
 ALUGUEL_FUNCIONARIO = ALUGUEL_POR_M2 * AREA_POR_FUNCIONARIO
@@ -20,11 +21,14 @@ class PDF(FPDF):
         self.set_font("Arial", "B", 14)
         self.cell(0, 10, "Aion X - Modelos de IA Autônomos", ln=True, align="C")
         self.set_font("Arial", "", 12)
-        self.cell(0, 10, "www.aionx.com.br", ln=True, align="C")
+        self.cell(0, 10, "www.aionx.com.br | contato@aionx.com.br | WhatsApp: (11) 91131-6581", ln=True, align="C")
         self.ln(5)
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Relatório de Custo de Funcionário Administrativo", ln=True, align="C")
-        self.ln(10)
+        self.ln(5)
+        self.set_font("Arial", "I", 10)
+        self.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
+        self.ln(5)
 
     def footer(self):
         self.set_y(-15)
@@ -71,9 +75,7 @@ def gerar_pdf(dados):
     # Totais finais
     total_mensal = total_sem_perdas + total_perdas
     total_anual = total_mensal * 12
-
-    # Custo por hora (22 dias úteis × 8h = 176h/mês)
-    custo_hora = total_mensal / 176
+    custo_hora = total_mensal / 176  # 22 dias úteis x 8 horas
 
     # Rescisão
     ferias_vencidas = salario + (salario / 3)
@@ -96,7 +98,6 @@ def gerar_pdf(dados):
             pdf.set_font("Arial", '', 12)
         pdf.cell(0, 10, f"{txt}: R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), ln=True)
 
-    pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, "Resumo dos Custos:", ln=True)
     add_line("Salário Base", salario)
     add_line("Provisões Legais", total_provisoes)
@@ -111,7 +112,6 @@ def gerar_pdf(dados):
     add_line("Custo por Hora Estimado", custo_hora)
 
     pdf.ln(5)
-    pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, "Provisão para Demissão:", ln=True)
     add_line("Férias + 1/3", ferias_vencidas)
     add_line("13º Salário", dec_terceiro)
