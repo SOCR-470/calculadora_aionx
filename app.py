@@ -3,16 +3,15 @@ from fpdf import FPDF
 
 # Constantes ajustadas
 TREINAMENTO_FIXO_MENSAL = 166.67
-ALUGUEL_POR_M2 = 42.52  # valor do m² comercial em Campinas
-AREA_POR_FUNCIONARIO = 7  # m² por funcionário
+ALUGUEL_POR_M2 = 42.52
+AREA_POR_FUNCIONARIO = 7
 ALUGUEL_FUNCIONARIO = ALUGUEL_POR_M2 * AREA_POR_FUNCIONARIO  # R$ 297,64
 CUSTO_FIXO_INFRA = 125.00  # água, energia e internet por funcionário
 DEPRECIACAO_MOBILIARIO = 20.00
 LIMPEZA_MANUTENCAO = 30.00
 EQUIPAMENTOS_TI = 120.00
 GESTAO_SUPERVISAO = 200.00
-ABSENTEISMO_PERC = 0.04
-FALHAS_PERC = 0.06
+ABSENTEISMO_PERC = 0.10  # percentual único para perdas
 
 st.set_page_config(page_title="Calculadora de Custos CLT Aion X", layout="centered")
 
@@ -47,27 +46,27 @@ def gerar_pdf(dados):
 
     # Benefícios
     beneficios = plano + vt + vr + va
+    subtotal_beneficios = salario + total_provisoes + total_encargos + beneficios
 
-    # Operacionais fixos (infraestrutura)
+    # Infraestrutura e operacionais
     infraestrutura = ALUGUEL_FUNCIONARIO + CUSTO_FIXO_INFRA
     operacionais = infraestrutura + DEPRECIACAO_MOBILIARIO + LIMPEZA_MANUTENCAO + EQUIPAMENTOS_TI
 
-    # Apoio e gestão
+    # Treinamento e gestão
     apoio = TREINAMENTO_FIXO_MENSAL + GESTAO_SUPERVISAO
 
-    # Total sem perdas
-    total_sem_perdas = salario + total_provisoes + total_encargos + beneficios + operacionais + apoio
+    # Total antes das perdas
+    total_sem_perdas = subtotal_beneficios + operacionais + apoio
 
-    # Perdas
+    # Absenteísmo (única perda)
     absenteismo = total_sem_perdas * ABSENTEISMO_PERC
-    falhas = total_sem_perdas * FALHAS_PERC
-    total_perdas = absenteismo + falhas
+    total_perdas = absenteismo
 
-    # Total final
+    # Totais finais
     total_mensal = total_sem_perdas + total_perdas
     total_anual = total_mensal * 12
 
-    # Rescisão
+    # Verbas rescisórias
     ferias_vencidas = salario + (salario / 3)
     dec_terceiro = salario
     aviso = salario
@@ -75,7 +74,7 @@ def gerar_pdf(dados):
     total_rescisao = ferias_vencidas + dec_terceiro + aviso + multa_fgts
     total_geral = total_anual + total_rescisao
 
-    # PDF
+    # Gerar PDF
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", '', 12)
@@ -88,10 +87,10 @@ def gerar_pdf(dados):
     add_line("Provisões Legais", total_provisoes)
     add_line("Encargos Patronais", total_encargos)
     add_line("Benefícios", beneficios)
+    add_line("Subtotal até Benefícios", subtotal_beneficios)
     add_line("Infraestrutura e Suporte", operacionais)
     add_line("Treinamento e Gestão", apoio)
-    add_line("Absenteísmo (4%)", absenteismo)
-    add_line("Falhas (6%)", falhas)
+    add_line("Absenteísmo (10%)", absenteismo)
     add_line("Custo Mensal Estimado", total_mensal)
     add_line("Custo Anual Estimado", total_anual)
 
@@ -104,7 +103,7 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
-    # Explicações detalhadas
+    # Página de explicações
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
@@ -117,19 +116,18 @@ def gerar_pdf(dados):
         "  * INSS Patronal: 33,44% sobre o salário base\n"
         "  * FGTS: 8% sobre o salário base\n\n"
         "- Benefícios:\n"
-        "  * Informados diretamente pelo usuário\n\n"
+        "  * Informados manualmente pelo usuário\n\n"
         "- Infraestrutura e Suporte:\n"
         f"  * Aluguel: 7 m² × R$ {ALUGUEL_POR_M2}/m² = R$ {ALUGUEL_FUNCIONARIO:.2f}\n"
         f"  * Água, energia, internet (fixo): R$ {CUSTO_FIXO_INFRA:.2f}\n"
         "  * Depreciação mobiliário: R$ 20,00/mês\n"
         "  * Limpeza/manutenção: R$ 30,00/mês\n"
-        "  * TI (equipamentos, suporte, licenças): R$ 120,00/mês\n\n"
+        "  * TI: R$ 120,00/mês (hardware, licenças, suporte)\n\n"
         "- Treinamento e Gestão:\n"
-        "  * Treinamento fixo: R$ 166,67/mês\n"
-        "  * Supervisão/Gestão: R$ 200,00/mês\n\n"
-        "- Perdas:\n"
-        "  * Absenteísmo: 4% do custo sem perdas\n"
-        "  * Outras falhas humanas: 6%\n\n"
+        "  * Treinamento: R$ 166,67/mês\n"
+        "  * Gestão/Supervisão: R$ 200,00/mês\n\n"
+        "- Absenteísmo:\n"
+        "  * 10% sobre o custo sem perdas\n\n"
         "- Verbas Rescisórias:\n"
         "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS"
     )
@@ -138,7 +136,7 @@ def gerar_pdf(dados):
     pdf.output(pdf_output)
     return pdf_output
 
-# Interface
+# Interface Streamlit
 st.markdown("### 🧾 Calculadora de Custo CLT - Aion X")
 st.markdown("Preencha os campos abaixo para gerar o relatório completo em PDF:")
 
