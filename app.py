@@ -3,11 +3,18 @@ from fpdf import FPDF
 
 # Constantes ajustadas
 TREINAMENTO_FIXO_MENSAL = 166.67
-INFRA_TETO_MIN = 450.00
-INFRA_TETO_MAX = 750.00
-FALHAS_PERC = 0.20
+ALUGUEL_POR_M2 = 42.52  # valor do m² comercial em Campinas
+AREA_POR_FUNCIONARIO = 7  # m² por funcionário
+ALUGUEL_FUNCIONARIO = ALUGUEL_POR_M2 * AREA_POR_FUNCIONARIO  # R$ 297,64
+CUSTO_FIXO_INFRA = 125.00  # água, energia e internet por funcionário
+DEPRECIACAO_MOBILIARIO = 20.00
+LIMPEZA_MANUTENCAO = 30.00
+EQUIPAMENTOS_TI = 120.00
+GESTAO_SUPERVISAO = 200.00
+ABSENTEISMO_PERC = 0.04
+FALHAS_PERC = 0.06
 
-st.set_page_config(page_title="Calculadora Aion X", layout="centered")
+st.set_page_config(page_title="Calculadora de Custos CLT Aion X", layout="centered")
 
 class PDF(FPDF):
     def header(self):
@@ -41,22 +48,26 @@ def gerar_pdf(dados):
     # Benefícios
     beneficios = plano + vt + vr + va
 
-    # Infraestrutura: valor fixo ajustável
-    infraestrutura = max(INFRA_TETO_MIN, min(INFRA_TETO_MAX, 614.15))
+    # Operacionais fixos (infraestrutura)
+    infraestrutura = ALUGUEL_FUNCIONARIO + CUSTO_FIXO_INFRA
+    operacionais = infraestrutura + DEPRECIACAO_MOBILIARIO + LIMPEZA_MANUTENCAO + EQUIPAMENTOS_TI
 
-    # Treinamento: valor fixo
-    treinamento = TREINAMENTO_FIXO_MENSAL
+    # Apoio e gestão
+    apoio = TREINAMENTO_FIXO_MENSAL + GESTAO_SUPERVISAO
 
-    # Custo total antes das falhas
-    total_base = salario + total_provisoes + total_encargos + beneficios + infraestrutura + treinamento
+    # Total sem perdas
+    total_sem_perdas = salario + total_provisoes + total_encargos + beneficios + operacionais + apoio
 
-    # Falhas humanas: 20% sobre todo o custo base
-    falhas = total_base * FALHAS_PERC
+    # Perdas
+    absenteismo = total_sem_perdas * ABSENTEISMO_PERC
+    falhas = total_sem_perdas * FALHAS_PERC
+    total_perdas = absenteismo + falhas
 
-    total_mensal = total_base + falhas
+    # Total final
+    total_mensal = total_sem_perdas + total_perdas
     total_anual = total_mensal * 12
 
-    # Verbas Rescisórias
+    # Rescisão
     ferias_vencidas = salario + (salario / 3)
     dec_terceiro = salario
     aviso = salario
@@ -64,6 +75,7 @@ def gerar_pdf(dados):
     total_rescisao = ferias_vencidas + dec_terceiro + aviso + multa_fgts
     total_geral = total_anual + total_rescisao
 
+    # PDF
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", '', 12)
@@ -74,15 +86,17 @@ def gerar_pdf(dados):
     pdf.cell(0, 10, "Resumo dos Custos:", ln=True)
     add_line("Salário Base", salario)
     add_line("Provisões Legais", total_provisoes)
-    add_line("Encargos", total_encargos)
+    add_line("Encargos Patronais", total_encargos)
     add_line("Benefícios", beneficios)
-    add_line("Infraestrutura (valor ajustado)", infraestrutura)
-    add_line("Treinamento (fixo)", treinamento)
-    add_line("Falhas Humanas (20%)", falhas)
-    add_line("Total Mensal", total_mensal)
-    add_line("Total Anual", total_anual)
+    add_line("Infraestrutura e Suporte", operacionais)
+    add_line("Treinamento e Gestão", apoio)
+    add_line("Absenteísmo (4%)", absenteismo)
+    add_line("Falhas (6%)", falhas)
+    add_line("Custo Mensal Estimado", total_mensal)
+    add_line("Custo Anual Estimado", total_anual)
+
     pdf.ln(5)
-    pdf.cell(0, 10, "Verbas Rescisórias:", ln=True)
+    pdf.cell(0, 10, "Provisão para Demissão:", ln=True)
     add_line("Férias + 1/3", ferias_vencidas)
     add_line("13º Salário", dec_terceiro)
     add_line("Aviso Prévio", aviso)
@@ -90,27 +104,34 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
+    # Explicações detalhadas
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
     pdf.set_font("Arial", '', 11)
     pdf.multi_cell(0, 7,
-        "- Provisões Legais:\n"
+        f"- Provisões Legais:\n"
         "  * 13º salário: 1/12 do salário base por mês\n"
         "  * Férias: 1/12 do salário base + 1/3 constitucional\n\n"
         "- Encargos:\n"
-        "  * INSS Patronal (estimado): 33,44% sobre o salário base\n"
+        "  * INSS Patronal: 33,44% sobre o salário base\n"
         "  * FGTS: 8% sobre o salário base\n\n"
         "- Benefícios:\n"
-        "  * Informados manualmente pelo usuário\n\n"
-        "- Infraestrutura:\n"
-        "  * Custo médio de R$ 614,15, limitado entre R$ 450,00 e R$ 750,00 mensais\n\n"
-        "- Treinamento:\n"
-        "  * Estimado em R$ 2.000/ano, rateado em R$ 166,67 por mês\n\n"
-        "- Falhas Humanas:\n"
-        "  * Estimadas em 20% do custo total mensal antes das falhas\n\n"
+        "  * Informados diretamente pelo usuário\n\n"
+        "- Infraestrutura e Suporte:\n"
+        f"  * Aluguel: 7 m² × R$ {ALUGUEL_POR_M2}/m² = R$ {ALUGUEL_FUNCIONARIO:.2f}\n"
+        f"  * Água, energia, internet (fixo): R$ {CUSTO_FIXO_INFRA:.2f}\n"
+        "  * Depreciação mobiliário: R$ 20,00/mês\n"
+        "  * Limpeza/manutenção: R$ 30,00/mês\n"
+        "  * TI (equipamentos, suporte, licenças): R$ 120,00/mês\n\n"
+        "- Treinamento e Gestão:\n"
+        "  * Treinamento fixo: R$ 166,67/mês\n"
+        "  * Supervisão/Gestão: R$ 200,00/mês\n\n"
+        "- Perdas:\n"
+        "  * Absenteísmo: 4% do custo sem perdas\n"
+        "  * Outras falhas humanas: 6%\n\n"
         "- Verbas Rescisórias:\n"
-        "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS acumulado"
+        "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS"
     )
 
     pdf_output = "relatorio_aionx.pdf"
@@ -118,8 +139,8 @@ def gerar_pdf(dados):
     return pdf_output
 
 # Interface
-st.markdown("### 🧾 Calculadora de Custo CLT - Aion X (versão refinada)")
-st.markdown("Preencha os campos abaixo para gerar o relatório completo:")
+st.markdown("### 🧾 Calculadora de Custo CLT - Aion X")
+st.markdown("Preencha os campos abaixo para gerar o relatório completo em PDF:")
 
 with st.form("dados_funcionario"):
     salario = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
