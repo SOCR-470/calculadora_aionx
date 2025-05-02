@@ -1,8 +1,10 @@
 import streamlit as st
 from fpdf import FPDF
 from datetime import datetime
+import matplotlib.pyplot as plt
+import os
 
-# Constantes ajustadas
+# Constantes
 TREINAMENTO_FIXO_MENSAL = 166.67
 ALUGUEL_POR_M2 = 42.52
 AREA_POR_FUNCIONARIO = 7
@@ -35,6 +37,19 @@ class PDF(FPDF):
         self.set_font("Arial", "I", 8)
         self.cell(0, 10, f'Página {self.page_no()}', align="C")
 
+def gerar_grafico_pizza(componentes):
+    labels = list(componentes.keys())
+    valores = list(componentes.values())
+    cores = plt.get_cmap('tab20').colors
+    plt.figure(figsize=(8, 6))
+    plt.pie(valores, labels=labels, autopct='%1.1f%%', startangle=140, colors=cores[:len(labels)])
+    plt.axis('equal')
+    plt.title('Distribuição Percentual dos Custos Mensais')
+    nome_arquivo = "grafico_custos.png"
+    plt.savefig(nome_arquivo, bbox_inches='tight')
+    plt.close()
+    return nome_arquivo
+
 def gerar_pdf(dados):
     empresa = dados["empresa"]
     salario = dados["salario"]
@@ -43,47 +58,47 @@ def gerar_pdf(dados):
     vr = dados["vr"]
     va = dados["va"]
 
-    # Provisões
+    # Cálculos
     prov13 = salario / 12
     prov_ferias = salario / 12
     adic_ferias = prov_ferias / 3
     total_provisoes = prov13 + prov_ferias + adic_ferias
 
-    # Encargos
     fgts = salario * 0.08
     inss = salario * 0.3344
     total_encargos = fgts + inss
 
-    # Benefícios
     beneficios = plano + vt + vr + va
     subtotal_beneficios = salario + total_provisoes + total_encargos + beneficios
 
-    # Infraestrutura e operacionais
     infraestrutura = ALUGUEL_FUNCIONARIO + CUSTO_FIXO_INFRA
     operacionais = infraestrutura + DEPRECIACAO_MOBILIARIO + LIMPEZA_MANUTENCAO + EQUIPAMENTOS_TI
-
-    # Treinamento e gestão
     apoio = TREINAMENTO_FIXO_MENSAL + GESTAO_SUPERVISAO
 
-    # Total sem perdas
     total_sem_perdas = subtotal_beneficios + operacionais + apoio
-
-    # Absenteísmo
     absenteismo = total_sem_perdas * ABSENTEISMO_PERC
-    total_perdas = absenteismo
-
-    # Totais finais
-    total_mensal = total_sem_perdas + total_perdas
+    total_mensal = total_sem_perdas + absenteismo
     total_anual = total_mensal * 12
-    custo_hora = total_mensal / 176  # 22 dias úteis x 8 horas
+    custo_hora = total_mensal / 176
 
-    # Rescisão
     ferias_vencidas = salario + (salario / 3)
     dec_terceiro = salario
     aviso = salario
     multa_fgts = fgts * 12 * 0.40
     total_rescisao = ferias_vencidas + dec_terceiro + aviso + multa_fgts
     total_geral = total_anual + total_rescisao
+
+    # Gráfico de pizza
+    componentes = {
+        "Salário": salario,
+        "Provisões": total_provisoes,
+        "Encargos": total_encargos,
+        "Benefícios": beneficios,
+        "Infraestrutura": operacionais,
+        "Gestão/Treinamento": apoio,
+        "Absenteísmo": absenteismo
+    }
+    grafico_path = gerar_grafico_pizza(componentes)
 
     # PDF
     pdf = PDF()
@@ -120,6 +135,13 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
+    # Gráfico
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Distribuição dos Custos Mensais", ln=True)
+    pdf.image(grafico_path, x=30, y=None, w=150)
+
+    # Explicações
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
@@ -138,20 +160,23 @@ def gerar_pdf(dados):
         f"  * Água, energia, internet (fixo): R$ {CUSTO_FIXO_INFRA:.2f}\n"
         "  * Depreciação mobiliário: R$ 20,00/mês\n"
         "  * Limpeza/manutenção: R$ 30,00/mês\n"
-        "  * TI: R$ 120,00/mês (hardware, licenças, suporte)\n\n"
+        "  * TI: R$ 120,00/mês\n\n"
         "- Treinamento e Gestão:\n"
         "  * Treinamento: R$ 166,67/mês\n"
         "  * Gestão/Supervisão: R$ 200,00/mês\n\n"
         "- Absenteísmo:\n"
         "  * 10% sobre o custo sem perdas\n\n"
         "- Custo por Hora:\n"
-        "  * Considerando 176 horas úteis por mês (22 dias úteis × 8h)\n\n"
+        "  * 176 horas úteis por mês (22 dias × 8h)\n\n"
         "- Verbas Rescisórias:\n"
         "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS"
     )
 
+    # Salvar PDF e limpar imagem
     pdf_output = "relatorio_aionx.pdf"
     pdf.output(pdf_output)
+    if os.path.exists(grafico_path):
+        os.remove(grafico_path)
     return pdf_output
 
 # Interface Streamlit
