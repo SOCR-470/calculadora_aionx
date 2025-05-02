@@ -45,7 +45,7 @@ def gerar_grafico_pizza(componentes):
     plt.figure(figsize=(8, 6))
     plt.pie(valores, labels=labels, autopct='%1.1f%%', startangle=140, colors=cores[:len(labels)])
     plt.axis('equal')
-    plt.title('Distribuição Percentual dos Custos Mensais')
+    plt.title('')
     nome_arquivo = "grafico_custos.png"
     plt.savefig(nome_arquivo, bbox_inches='tight')
     plt.close()
