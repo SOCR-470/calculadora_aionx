@@ -18,7 +18,7 @@ st.set_page_config(page_title="Calculadora de Custos CLT Aion X", layout="center
 class PDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 14)
-        self.cell(0, 10, "Aion X - Inteligência para Redução de Custos", ln=True, align="C")
+        self.cell(0, 10, "Aion X - Modelos de IA Autônomos", ln=True, align="C")
         self.set_font("Arial", "", 12)
         self.cell(0, 10, "www.aionx.com.br", ln=True, align="C")
         self.ln(5)
@@ -54,14 +54,14 @@ def gerar_pdf(dados):
     beneficios = plano + vt + vr + va
     subtotal_beneficios = salario + total_provisoes + total_encargos + beneficios
 
-    # Infraestrutura
+    # Infraestrutura e operacionais
     infraestrutura = ALUGUEL_FUNCIONARIO + CUSTO_FIXO_INFRA
     operacionais = infraestrutura + DEPRECIACAO_MOBILIARIO + LIMPEZA_MANUTENCAO + EQUIPAMENTOS_TI
 
     # Treinamento e gestão
     apoio = TREINAMENTO_FIXO_MENSAL + GESTAO_SUPERVISAO
 
-    # Sem perdas
+    # Total sem perdas
     total_sem_perdas = subtotal_beneficios + operacionais + apoio
 
     # Absenteísmo
@@ -71,6 +71,9 @@ def gerar_pdf(dados):
     # Totais finais
     total_mensal = total_sem_perdas + total_perdas
     total_anual = total_mensal * 12
+
+    # Custo por hora (22 dias úteis × 8h = 176h/mês)
+    custo_hora = total_mensal / 176
 
     # Rescisão
     ferias_vencidas = salario + (salario / 3)
@@ -86,22 +89,29 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, f"Empresa: {empresa}", ln=True)
 
-    def add_line(txt, val):
+    def add_line(txt, val, bold=False):
+        if bold:
+            pdf.set_font("Arial", 'B', 12)
+        else:
+            pdf.set_font("Arial", '', 12)
         pdf.cell(0, 10, f"{txt}: R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), ln=True)
 
+    pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, "Resumo dos Custos:", ln=True)
     add_line("Salário Base", salario)
     add_line("Provisões Legais", total_provisoes)
     add_line("Encargos Patronais", total_encargos)
     add_line("Benefícios", beneficios)
-    add_line("Subtotal até Benefícios", subtotal_beneficios)
+    add_line("Subtotal até Benefícios", subtotal_beneficios, bold=True)
     add_line("Infraestrutura e Suporte", operacionais)
     add_line("Treinamento e Gestão", apoio)
     add_line("Absenteísmo (10%)", absenteismo)
-    add_line("Custo Mensal Estimado", total_mensal)
-    add_line("Custo Anual Estimado", total_anual)
+    add_line("Custo Mensal Estimado", total_mensal, bold=True)
+    add_line("Custo Anual Estimado", total_anual, bold=True)
+    add_line("Custo por Hora Estimado", custo_hora)
 
     pdf.ln(5)
+    pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, "Provisão para Demissão:", ln=True)
     add_line("Férias + 1/3", ferias_vencidas)
     add_line("13º Salário", dec_terceiro)
@@ -110,7 +120,6 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
-    # Explicações
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
@@ -135,6 +144,8 @@ def gerar_pdf(dados):
         "  * Gestão/Supervisão: R$ 200,00/mês\n\n"
         "- Absenteísmo:\n"
         "  * 10% sobre o custo sem perdas\n\n"
+        "- Custo por Hora:\n"
+        "  * Considerando 176 horas úteis por mês (22 dias úteis × 8h)\n\n"
         "- Verbas Rescisórias:\n"
         "  * Incluem férias vencidas + 1/3, 13º, aviso prévio e multa de 40% sobre FGTS"
     )
