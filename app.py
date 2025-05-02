@@ -5,19 +5,24 @@ from fpdf import FPDF
 TREINAMENTO_FIXO_MENSAL = 166.67
 ALUGUEL_POR_M2 = 42.52
 AREA_POR_FUNCIONARIO = 7
-ALUGUEL_FUNCIONARIO = ALUGUEL_POR_M2 * AREA_POR_FUNCIONARIO  # R$ 297,64
-CUSTO_FIXO_INFRA = 125.00  # água, energia e internet por funcionário
+ALUGUEL_FUNCIONARIO = ALUGUEL_POR_M2 * AREA_POR_FUNCIONARIO
+CUSTO_FIXO_INFRA = 125.00
 DEPRECIACAO_MOBILIARIO = 20.00
 LIMPEZA_MANUTENCAO = 30.00
 EQUIPAMENTOS_TI = 120.00
 GESTAO_SUPERVISAO = 200.00
-ABSENTEISMO_PERC = 0.10  # percentual único para perdas
+ABSENTEISMO_PERC = 0.10
 
 st.set_page_config(page_title="Calculadora de Custos CLT Aion X", layout="centered")
 
 class PDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 14)
+        self.cell(0, 10, "Aion X - Inteligência para Redução de Custos", ln=True, align="C")
+        self.set_font("Arial", "", 12)
+        self.cell(0, 10, "www.aionx.com.br", ln=True, align="C")
+        self.ln(5)
+        self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Relatório de Custo de Funcionário Administrativo", ln=True, align="C")
         self.ln(10)
 
@@ -27,6 +32,7 @@ class PDF(FPDF):
         self.cell(0, 10, f'Página {self.page_no()}', align="C")
 
 def gerar_pdf(dados):
+    empresa = dados["empresa"]
     salario = dados["salario"]
     plano = dados["plano"]
     vt = dados["vt"]
@@ -48,17 +54,17 @@ def gerar_pdf(dados):
     beneficios = plano + vt + vr + va
     subtotal_beneficios = salario + total_provisoes + total_encargos + beneficios
 
-    # Infraestrutura e operacionais
+    # Infraestrutura
     infraestrutura = ALUGUEL_FUNCIONARIO + CUSTO_FIXO_INFRA
     operacionais = infraestrutura + DEPRECIACAO_MOBILIARIO + LIMPEZA_MANUTENCAO + EQUIPAMENTOS_TI
 
     # Treinamento e gestão
     apoio = TREINAMENTO_FIXO_MENSAL + GESTAO_SUPERVISAO
 
-    # Total antes das perdas
+    # Sem perdas
     total_sem_perdas = subtotal_beneficios + operacionais + apoio
 
-    # Absenteísmo (única perda)
+    # Absenteísmo
     absenteismo = total_sem_perdas * ABSENTEISMO_PERC
     total_perdas = absenteismo
 
@@ -66,7 +72,7 @@ def gerar_pdf(dados):
     total_mensal = total_sem_perdas + total_perdas
     total_anual = total_mensal * 12
 
-    # Verbas rescisórias
+    # Rescisão
     ferias_vencidas = salario + (salario / 3)
     dec_terceiro = salario
     aviso = salario
@@ -74,10 +80,11 @@ def gerar_pdf(dados):
     total_rescisao = ferias_vencidas + dec_terceiro + aviso + multa_fgts
     total_geral = total_anual + total_rescisao
 
-    # Gerar PDF
+    # PDF
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"Empresa: {empresa}", ln=True)
 
     def add_line(txt, val):
         pdf.cell(0, 10, f"{txt}: R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), ln=True)
@@ -103,7 +110,7 @@ def gerar_pdf(dados):
     add_line("Total Rescisório", total_rescisao)
     add_line("Custo Total Anual com Rescisão", total_geral)
 
-    # Página de explicações
+    # Explicações
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "Explicações Detalhadas dos Cálculos", ln=True)
@@ -141,6 +148,7 @@ st.markdown("### 🧾 Calculadora de Custo CLT - Aion X")
 st.markdown("Preencha os campos abaixo para gerar o relatório completo em PDF:")
 
 with st.form("dados_funcionario"):
+    empresa = st.text_input("Nome da empresa atendida")
     salario = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
     plano = st.number_input("Plano de Saúde (R$)", min_value=0.0, step=10.0, format="%.2f")
     vt = st.number_input("Vale Transporte (R$)", min_value=0.0, step=10.0, format="%.2f")
@@ -150,6 +158,7 @@ with st.form("dados_funcionario"):
 
 if submitted:
     dados = {
+        "empresa": empresa,
         "salario": salario,
         "plano": plano,
         "vt": vt,
